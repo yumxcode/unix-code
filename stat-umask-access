@@ -1,0 +1,70 @@
+unix文件各种属性，可被stat系列函数获得，其中stat函数需要一个stat的结构体，用于存储文件各种属性。
+stat结构体定义：
+   struct stat{
+   mode_t st_mode;            //文件类型以及访问权限
+   ino_t  st_ino;             //i节点序号
+   dev_t  st_dev;             //设备号
+   dev_t  st_rdev             //特殊文件设备号
+   nlink_t st_nlink;          //链接数
+   uid_t  st_uid;             //所属的用户id号
+   gid_t  st_gid;             //所属的组id号
+   off_t  st_size;            //常规文件大小，以字节记
+   struct timespec  st_atime;     //上一次访问时间
+   struct timespec  st_mtime;      //上一次修改内容时间
+   struct timespec  st_ctime;       //上一次文件属性修改时间
+   blksize_t   st_blksize;           //best of I/O block size
+   blkcnt_t     st_blocks;           //numbers of disk blocks allocated
+   };
+   
+   主要的函数调用：
+   #include<sys/stat.h>
+   int stat(const char *restrict pathname,struct stat *restrict buf);
+   int fstat(int fd,struct stat *buf);
+   int lstat(const char *restrct pathname,strcut stat *restrict buf);
+   int fstatat(int fd,const char *restrict pathname,struct stat *restrict buf,int flag);
+   ##注：几个函数功能相同，不同的是有的需要绝对地址，有的需要文件描述符。函数成功，返回0，出错，返回-1；
+   
+   文件属性：
+   
+   1》文件类型：普通文件，目录文件，块特殊文件，字符特殊文件，FIFO，套接字，符号连接等，文件类型保存在st_mode中，可用宏来判定：
+     S_ISREG() //普通文件，S_ISDIR() //目录文件， S_ISCHR() //字符特殊文件，S_ISBLK() //块特殊文件，S_ISFIFO() //管道或FIFO
+     S_ISLNK() //符号连接，S_ISSOCK() //套接字
+     是则返回1，否，则返回0；
+     
+   2》文件所属：
+             用户,组，其他。            
+             note:有一个设置用户id和设置组id。当设置用户id（SUID)和设置组id(SGID)位置位时，可以在运行时提升权限。如：passwd文件，
+                 任何用户都可以使用passwd来修改密码，但是其所属为root和组也为root。但是执行文件的用户的有效进程id却不是root,这个SUID
+                 和SGID可以在运行时将进程的有效进程ID设置为文件所属ID。这样，每个用户在执行passwd时，其有效的进程id被设置为root.
+   3》文件访问权限：
+     有9个访问权限st_mode屏蔽：
+                             S_IRUSR,S_IWUSR,S_IXUSR  //用户read,write,执行。
+                             S_IRGRP,S_IWGRP,S_IXGRP   //组 read,write,执行
+                             S_IROTH,S_IWOTH,S_IXOTH   //其他read,write,执行
+                             
+   4》access
+     以实际用户id和实际组id来执行访问权限测试：
+     #include<unistd.h>
+     int access(const char *pathname,int mode);   //成功返回0，失败返回-1；
+     其中:
+       mode:
+           R_OK,W_OK,X_OK。分别测试读，写和执行。
+           
+   5》umask函数
+     #include<sys/stat.h>
+     mode_t umask(mode_t cmask);//没有返回值。
+     umask用来设置默认文件访问权限：其中r=4,w=2,x=1。umask()用总数7减去屏蔽的权限。
+     如:umask(111)，则创建的文件的访问权限为:rwrwrw。
+     
+   6》chmod,fchmod...
+     #include<sys/stat.h>
+     int chmod(const char *pathname,mode_t mode);
+     int fchmod(int fd,mode_t mode);
+     int fchmodat(int fd.const char *pathname,mode_t mode,int flag);
+     若成功返回0，失败返回-1.
+     其中mode:
+      S_ISUID //执行设置用户id  S_ISGID //执行设置组id， S_ISVTX  //粘着位 注：设置粘着位，只有文件拥者此目录拥有者，或是超级用户才能
+      删除或重命名文件。
+      S_IRWXU //用户读写执行 S_IRUSR,S_IWUSR,S_IXUSR
+      S_IRWXG  //组读写执行 S_IRGRP,S_IWGRP，S_IXGRP
+      S_IRWXO  //其他读写执行  S_IROTH,S_IWOTH,S_IXOTH
